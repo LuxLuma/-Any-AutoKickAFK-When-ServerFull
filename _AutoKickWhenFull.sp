@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.0"
+#define PLUGIN_VERSION "1.0.1"
 
 
 static int iLastAction[MAXPLAYERS+1];
@@ -192,6 +192,9 @@ void CvarsChanged()
 {
 	bCheckSpec = GetConVarInt(hCvar_CheckSpec) > 0;
 	iAfkTime = GetConVarInt(hCvar_AfkTime);
-	iMaxVisiblePlayers = GetConVarInt(hCvar_VisibleMaxPlayers);
+	
+	if(hCvar_VisibleMaxPlayers != INVALID_HANDLE)
+		iMaxVisiblePlayers = GetConVarInt(hCvar_VisibleMaxPlayers);
+	
 	bKickOnFull = GetConVarInt(hCvar_KickOnFull) > 0;
 }
