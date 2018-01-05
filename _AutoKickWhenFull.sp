@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.0.1"
+#define PLUGIN_VERSION "1.0.2"
 
 
 static int iLastAction[MAXPLAYERS+1];
@@ -71,7 +71,7 @@ public Action AutoKick(Handle hTimer)
 	static int i;
 	for(i = 1; i <= MaxClients;i++)
 	{
-		if(!IsClientConnected(i) || IsFakeClient(i) || GetUserFlagBits(i) & ADMFLAG_RESERVATION|ADMFLAG_ROOT)
+		if(!IsClientConnected(i) || IsFakeClient(i) || CheckCommandAccess(i, "", ADMFLAG_RESERVATION|ADMFLAG_ROOT, true))//https://forums.alliedmods.net/showpost.php?p=2569853&postcount=2
 			continue;
 		
 		if(IsClientConnected(i) && !IsClientInGame(i))
@@ -97,7 +97,7 @@ public Action AutoKick(Handle hTimer)
 
 public Action OnPlayerRunCmd(int iClient, int &iButtons, int &iImpulse, float fVel[3], float fAngles[3], int &iWeapon, int &iSubtype, int &iCmdnum, int &iTickcount, int &iSeed, int iMouse[2])
 {
-	if(IsFakeClient(iClient) || GetUserFlagBits(iClient) & ADMFLAG_RESERVATION|ADMFLAG_ROOT)
+	if(IsFakeClient(iClient) || CheckCommandAccess(iClient, "", ADMFLAG_RESERVATION|ADMFLAG_ROOT, true))
 		return Plugin_Continue;
 	
 	if(!bCheckSpec)
