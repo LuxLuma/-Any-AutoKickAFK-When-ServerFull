@@ -1,0 +1,1 @@
+# [Any]AutoKickAFK When ServerFull
