@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.0.2"
+#define PLUGIN_VERSION "1.0.3"
 
 
 static int iLastAction[MAXPLAYERS+1];
@@ -86,7 +86,7 @@ public Action AutoKick(Handle hTimer)
 		if(iLastAction[i] < fNow - iAfkTime)
 		{
 			if(IsClientInGame(i))
-				KickClient(i, "Server is full making room because you're AFK!");
+				KickClient(i, "Kicked for being AFK!");
 			
 			bKick = false;
 		}
@@ -148,7 +148,7 @@ static bool IsMouseValsValid(int iClient)
 
 public void ePlayerConnect(Handle hEvent, const char[] sName, bool bDontBroadcast)
 {	
-	CreateTimer(1.0, CheckClient, GetEventInt(hEvent, "userid"), TIMER_REPEAT);
+	CreateTimer(0.1, CheckClient, GetEventInt(hEvent, "userid"), TIMER_REPEAT);
 }
 
 public Action CheckClient(Handle hTimer, any iUserID)
