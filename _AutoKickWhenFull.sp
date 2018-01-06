@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.0.5"
+#define PLUGIN_VERSION "1.0.7"
 
 
 static int iLastAction[MAXPLAYERS+1];
@@ -19,7 +19,6 @@ static bool bKickOnFull = true;
 static Handle hCvar_VisibleMaxPlayers = INVALID_HANDLE;
 static int iMaxVisiblePlayers = -1;
 
-static int iAuthUserID[MAXPLAYERS+1][2];
 
 static bool bL4D = false;// only tested on l4d but should work on other games
 
@@ -41,14 +40,6 @@ public void OnPluginStart()
 	hCvar_VisibleMaxPlayers = FindConVar("sv_visiblemaxplayers");
 	if(hCvar_VisibleMaxPlayers != INVALID_HANDLE)
 		HookConVarChange(hCvar_VisibleMaxPlayers, eConvarChanged);
-		
-	for(int i = 1; i <= MAXPLAYERS; i++)
-	{
-		iLastAction[i] = view_as<int>(GetEngineTime());// incase someone loaded plugin with cmd
-		iAuthUserID[i][0] = -1;
-		iAuthUserID[i][1] = 0;
-	}
-	
 	
 	CreateConVar("konfull_AutoKickWhenFull_version", "AutoKickWhenFull plugin version", PLUGIN_VERSION, FCVAR_SPONLY|FCVAR_DONTRECORD|FCVAR_NOTIFY);
 	
@@ -61,8 +52,6 @@ public void OnPluginStart()
 	
 	AutoExecConfig(true, "_AutoKickWhenFull");
 	
-	HookEvent("player_connect", ePlayerConnect, EventHookMode_Post);
-	HookEvent("player_disconnect", ePlayerDisconnect, EventHookMode_Post);
 	CreateTimer(1.0, AutoKick, INVALID_HANDLE, TIMER_REPEAT);
 }
 
@@ -79,23 +68,15 @@ public Action AutoKick(Handle hTimer)
 	static int i;
 	for(i = 1; i <= MaxClients;i++)
 	{
-		if(!IsClientConnected(i) || IsFakeClient(i) || CheckCommandAccess(i, "", ADMFLAG_RESERVATION|ADMFLAG_ROOT, true))//https://forums.alliedmods.net/showpost.php?p=2569853&postcount=2
+		if(!IsClientConnected(i) || !IsClientInGame(i) || IsFakeClient(i) || CheckCommandAccess(i, "", ADMFLAG_RESERVATION|ADMFLAG_ROOT, true))//https://forums.alliedmods.net/showpost.php?p=2569853&postcount=2
 			continue;
-		
-		if(IsClientConnected(i) && !IsClientInGame(i))
-		{
-			iLastAction[i]++;
-			continue;
-		}
 		
 		if(!bKick)
 			continue;
 		
 		if(iLastAction[i] < fNow - iAfkTime)
 		{
-			if(IsClientInGame(i))
-				KickClient(i, "Kicked for being AFK!");
-			
+			KickClient(i, "Kicked for being AFK!");
 			bKick = false;
 		}
 	}
@@ -154,61 +135,10 @@ static bool IsMouseValsValid(int iClient)
 	return false;
 }
 
-public void ePlayerConnect(Handle hEvent, const char[] sName, bool bDontBroadcast)
-{
-	for(int i = 0; i <= MaxClients; i++)
-	{
-		if(iAuthUserID[i][0] != -1)
-			continue;
-		
-		iAuthUserID[i][0] = GetEventInt(hEvent, "userid");
-		iAuthUserID[i][1] = 0;
-	}
-}
 
-public void ePlayerDisconnect(Handle hEvent, const char[] sName, bool bDontBroadcast)
+public void OnClientPutInServer(int client)
 {
-	int iUserID = GetEventInt(hEvent, "userid");
-	
-	for(int i = 0; i <= MaxClients; i++)
-	{
-		if(iAuthUserID[i][0] != iUserID)
-			continue;
-			
-		iAuthUserID[i][0] = -1;
-		iAuthUserID[i][1] = 0;
-	}
-}
-
-public void OnClientAuthorized(int client, const char[] auth)
-{
-	int iUserID = GetClientUserId(client);
-	for(int i = 0; i <= MaxClients; i++)
-	{
-		if(iAuthUserID[i][0] != iUserID)
-			continue;
-		
-		if(iAuthUserID[i][1] == 1)
-			continue;
-		
-		iAuthUserID[i][1] = 1;
-		iLastAction[client] = RoundFloat(GetEngineTime());
-	}
-}
-
-
-public Action CheckClient(Handle hTimer, any iUserID)
-{
-	int iClient = GetClientOfUserId(iUserID);
-	
-	if(iClient < 1 || iClient > MaxClients || !IsClientConnected(iClient) || IsFakeClient(iClient))
-		return Plugin_Stop;
-	
-	if(!IsClientAuthorized(iClient))
-		return Plugin_Continue;
-	
-	iLastAction[iClient] = RoundFloat(GetEngineTime());
-	return Plugin_Stop;
+	iLastAction[client] = RoundFloat(GetEngineTime());
 }
 
 static bool IsServerFull()
