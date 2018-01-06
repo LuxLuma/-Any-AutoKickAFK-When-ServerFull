@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.0.3"
+#define PLUGIN_VERSION "1.0.5"
 
 
 static int iLastAction[MAXPLAYERS+1];
@@ -18,6 +18,8 @@ static bool bKickOnFull = true;
 
 static Handle hCvar_VisibleMaxPlayers = INVALID_HANDLE;
 static int iMaxVisiblePlayers = -1;
+
+static int iAuthUserID[MAXPLAYERS+1][2];
 
 static bool bL4D = false;// only tested on l4d but should work on other games
 
@@ -41,7 +43,12 @@ public void OnPluginStart()
 		HookConVarChange(hCvar_VisibleMaxPlayers, eConvarChanged);
 		
 	for(int i = 1; i <= MAXPLAYERS; i++)
+	{
 		iLastAction[i] = view_as<int>(GetEngineTime());// incase someone loaded plugin with cmd
+		iAuthUserID[i][0] = -1;
+		iAuthUserID[i][1] = 0;
+	}
+	
 	
 	CreateConVar("konfull_AutoKickWhenFull_version", "AutoKickWhenFull plugin version", PLUGIN_VERSION, FCVAR_SPONLY|FCVAR_DONTRECORD|FCVAR_NOTIFY);
 	
@@ -55,6 +62,7 @@ public void OnPluginStart()
 	AutoExecConfig(true, "_AutoKickWhenFull");
 	
 	HookEvent("player_connect", ePlayerConnect, EventHookMode_Post);
+	HookEvent("player_disconnect", ePlayerDisconnect, EventHookMode_Post);
 	CreateTimer(1.0, AutoKick, INVALID_HANDLE, TIMER_REPEAT);
 }
 
@@ -147,9 +155,47 @@ static bool IsMouseValsValid(int iClient)
 }
 
 public void ePlayerConnect(Handle hEvent, const char[] sName, bool bDontBroadcast)
-{	
-	CreateTimer(0.1, CheckClient, GetEventInt(hEvent, "userid"), TIMER_REPEAT);
+{
+	for(int i = 0; i <= MaxClients; i++)
+	{
+		if(iAuthUserID[i][0] != -1)
+			continue;
+		
+		iAuthUserID[i][0] = GetEventInt(hEvent, "userid");
+		iAuthUserID[i][1] = 0;
+	}
 }
+
+public void ePlayerDisconnect(Handle hEvent, const char[] sName, bool bDontBroadcast)
+{
+	int iUserID = GetEventInt(hEvent, "userid");
+	
+	for(int i = 0; i <= MaxClients; i++)
+	{
+		if(iAuthUserID[i][0] != iUserID)
+			continue;
+			
+		iAuthUserID[i][0] = -1;
+		iAuthUserID[i][1] = 0;
+	}
+}
+
+public void OnClientAuthorized(int client, const char[] auth)
+{
+	int iUserID = GetClientUserId(client);
+	for(int i = 0; i <= MaxClients; i++)
+	{
+		if(iAuthUserID[i][0] != iUserID)
+			continue;
+		
+		if(iAuthUserID[i][1] == 1)
+			continue;
+		
+		iAuthUserID[i][1] = 1;
+		iLastAction[client] = RoundFloat(GetEngineTime());
+	}
+}
+
 
 public Action CheckClient(Handle hTimer, any iUserID)
 {
