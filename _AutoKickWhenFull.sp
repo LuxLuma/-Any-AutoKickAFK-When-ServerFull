@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.0.7"
+#define PLUGIN_VERSION "1.0.9"
 
 
 static int iLastAction[MAXPLAYERS+1];
@@ -71,6 +71,9 @@ public Action AutoKick(Handle hTimer)
 		if(!IsClientConnected(i) || !IsClientInGame(i) || IsFakeClient(i) || CheckCommandAccess(i, "", ADMFLAG_RESERVATION|ADMFLAG_ROOT, true))//https://forums.alliedmods.net/showpost.php?p=2569853&postcount=2
 			continue;
 		
+		if(GetClientTeam(i) < 1)
+			continue;
+		
 		if(!bKick)
 			continue;
 		
@@ -90,7 +93,7 @@ public Action OnPlayerRunCmd(int iClient, int &iButtons, int &iImpulse, float fV
 		return Plugin_Continue;
 	
 	if(!bCheckSpec)
-		if(GetClientTeam(iClient) < 2)
+		if(GetClientTeam(iClient) == 1)
 			return Plugin_Continue;
 	
 	static int iLastValues[MAXPLAYERS+1][3];
@@ -140,6 +143,12 @@ public void OnClientPutInServer(int client)
 {
 	iLastAction[client] = RoundFloat(GetEngineTime());
 }
+
+public void OnClientAuthorized(int client, const char[] auth)
+{
+	iLastAction[client] = RoundFloat(GetEngineTime());
+}
+
 
 static bool IsServerFull()
 {
