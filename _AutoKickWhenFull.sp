@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.0.9"
+#define PLUGIN_VERSION "1.1"
 
 
 static int iLastAction[MAXPLAYERS+1];
@@ -43,7 +43,7 @@ public void OnPluginStart()
 	
 	CreateConVar("konfull_AutoKickWhenFull_version", "AutoKickWhenFull plugin version", PLUGIN_VERSION, FCVAR_SPONLY|FCVAR_DONTRECORD|FCVAR_NOTIFY);
 	
-	hCvar_CheckSpec = CreateConVar("konfull_check_spec_for_movement", "1", "check spec team like players for movement [0 = consider spec as AFK! 1 = check as player]", FCVAR_NOTIFY);
+	hCvar_CheckSpec = CreateConVar("konfull_check_spec_for_movement", "0", "check spec team like players for movement [0 = consider spec as AFK! 1 = check as player]", FCVAR_NOTIFY);
 	HookConVarChange(hCvar_CheckSpec, eConvarChanged);
 	hCvar_AfkTime = CreateConVar("konfull_afk_time", "420", "(Seconds)afk time before they will get kicked", FCVAR_NOTIFY, true, 1.0);
 	HookConVarChange(hCvar_AfkTime, eConvarChanged);
@@ -68,7 +68,7 @@ public Action AutoKick(Handle hTimer)
 	static int i;
 	for(i = 1; i <= MaxClients;i++)
 	{
-		if(!IsClientConnected(i) || !IsClientInGame(i) || IsFakeClient(i) || CheckCommandAccess(i, "", ADMFLAG_RESERVATION|ADMFLAG_ROOT, true))//https://forums.alliedmods.net/showpost.php?p=2569853&postcount=2
+		if(!IsClientConnected(i) || !IsClientInGame(i) || IsFakeClient(i) || CheckCommandAccess(i, "sm_ban", ADMFLAG_BAN, false))//https://forums.alliedmods.net/showpost.php?p=2569853&postcount=2
 			continue;
 		
 		if(GetClientTeam(i) < 1)
@@ -89,7 +89,7 @@ public Action AutoKick(Handle hTimer)
 
 public Action OnPlayerRunCmd(int iClient, int &iButtons, int &iImpulse, float fVel[3], float fAngles[3], int &iWeapon, int &iSubtype, int &iCmdnum, int &iTickcount, int &iSeed, int iMouse[2])
 {
-	if(IsFakeClient(iClient) || CheckCommandAccess(iClient, "", ADMFLAG_RESERVATION|ADMFLAG_ROOT, true))
+	if(IsFakeClient(iClient) || CheckCommandAccess(iClient, "sm_ban", ADMFLAG_BAN, false))
 		return Plugin_Continue;
 	
 	if(!bCheckSpec)
