@@ -41,7 +41,7 @@ public void OnPluginStart()
 	if(hCvar_VisibleMaxPlayers != INVALID_HANDLE)
 		HookConVarChange(hCvar_VisibleMaxPlayers, eConvarChanged);
 	
-	CreateConVar("konfull_AutoKickWhenFull_version", "AutoKickWhenFull plugin version", PLUGIN_VERSION, FCVAR_SPONLY|FCVAR_DONTRECORD|FCVAR_NOTIFY);
+	CreateConVar("konfull_AutoKickWhenFull_version", PLUGIN_VERSION, "AutoKickWhenFull plugin version", FCVAR_SPONLY|FCVAR_DONTRECORD|FCVAR_NOTIFY);
 	
 	hCvar_CheckSpec = CreateConVar("konfull_check_spec_for_movement", "0", "check spec team like players for movement [0 = consider spec as AFK! 1 = check as player]", FCVAR_NOTIFY);
 	HookConVarChange(hCvar_CheckSpec, eConvarChanged);
