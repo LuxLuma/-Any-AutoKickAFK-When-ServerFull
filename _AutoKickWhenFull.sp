@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.1"
+#define PLUGIN_VERSION "1.1.1"
 
 
 static int iLastAction[MAXPLAYERS+1];
@@ -115,6 +115,9 @@ public Action OnPlayerRunCmd(int iClient, int &iButtons, int &iImpulse, float fV
 	}
 	
 	iLastAction[iClient] = RoundFloat(GetEngineTime());
+	iLastValues[iClient][0] =  iButtons;
+	iLastValues[iClient][1] =  iMouse[0];
+	iLastValues[iClient][2] =  iMouse[1];
 	
 	return Plugin_Continue;
 }
