@@ -5,7 +5,7 @@
 
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.1.1"
+#define PLUGIN_VERSION "1.2.0"
 
 
 static int iLastAction[MAXPLAYERS+1];
@@ -15,6 +15,10 @@ static Handle hCvar_AfkTime = INVALID_HANDLE;
 static int iAfkTime = 420;
 static Handle hCvar_KickOnFull = INVALID_HANDLE;
 static bool bKickOnFull = true;
+static Handle hCvar_AdminManageType = INVALID_HANDLE;
+static int iAdminManageType = 0;
+static Handle hCvar_AdminCmdAccess = INVALID_HANDLE;
+static char sAdminCmdAccessString[256];
 
 static Handle hCvar_VisibleMaxPlayers = INVALID_HANDLE;
 static int iMaxVisiblePlayers = -1;
@@ -33,9 +37,9 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-	char sGameName[13];
-	GetGameFolderName(sGameName, sizeof(sGameName));
-	bL4D = (StrContains(sGameName, "left4dead", false) == 0);
+	EngineVersion EngineVer = GetEngineVersion();
+	if(EngineVer == Engine_Left4Dead2 || EngineVer == Engine_Left4Dead)
+		bL4D = true;
 	
 	hCvar_VisibleMaxPlayers = FindConVar("sv_visiblemaxplayers");
 	if(hCvar_VisibleMaxPlayers != INVALID_HANDLE)
@@ -47,10 +51,15 @@ public void OnPluginStart()
 	HookConVarChange(hCvar_CheckSpec, eConvarChanged);
 	hCvar_AfkTime = CreateConVar("konfull_afk_time", "420", "(Seconds)afk time before they will get kicked", FCVAR_NOTIFY, true, 1.0);
 	HookConVarChange(hCvar_AfkTime, eConvarChanged);
-	hCvar_KickOnFull = CreateConVar("konfull_kick_on_full", "1", "Should we only kick when server is full [1 = true 0 = false]", FCVAR_NOTIFY);
+	hCvar_KickOnFull = CreateConVar("konfull_kick_on_full", "1", "Should we only kick when server is full [1 = true 0 = false]", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	HookConVarChange(hCvar_KickOnFull, eConvarChanged);
+	hCvar_AdminManageType = CreateConVar("konfull_admin_manage_type", "0", "How should admins be treated, [0 = Do nothing 1 = Move to spec 2 = kick them]", FCVAR_NOTIFY, true, 0.0, true, 2.0);
+	HookConVarChange(hCvar_AdminManageType, eConvarChanged);
+	hCvar_AdminCmdAccess = CreateConVar("konfull_admin_access_cmd", "sm_ban", "This is admin immunity command (if empty will use adminflag ADMFLAG_BAN \"d\") Note: can be used for any command not just admin commands", FCVAR_NOTIFY);
+	HookConVarChange(hCvar_AdminCmdAccess, eConvarChanged);
 	
 	AutoExecConfig(true, "_AutoKickWhenFull");
+	CvarsChanged();
 	
 	CreateTimer(1.0, AutoKick, INVALID_HANDLE, TIMER_REPEAT);
 }
@@ -60,27 +69,32 @@ public Action AutoKick(Handle hTimer)
 	if(!IsServerFull() && bKickOnFull)
 		return Plugin_Continue;
 	
-	static bool bKick;
-	bKick = true;
 	static float fNow;
 	fNow = GetEngineTime();
 	
 	static int i;
 	for(i = 1; i <= MaxClients;i++)
 	{
-		if(!IsClientConnected(i) || !IsClientInGame(i) || IsFakeClient(i) || CheckCommandAccess(i, "sm_ban", ADMFLAG_BAN, false))//https://forums.alliedmods.net/showpost.php?p=2569853&postcount=2
+		if(!IsClientConnected(i) || !IsClientInGame(i) || IsFakeClient(i))
+			continue;
+		
+		static bool bAdmin;
+		bAdmin = CheckCommandAccess(i, sAdminCmdAccessString, ADMFLAG_BAN, false);
+		if(iAdminManageType < 1 && bAdmin)
 			continue;
 		
 		if(GetClientTeam(i) < 1)
 			continue;
 		
-		if(!bKick)
-			continue;
-		
 		if(iLastAction[i] < fNow - iAfkTime)
 		{
-			KickClient(i, "Kicked for being AFK!");
-			bKick = false;
+			if(bAdmin && iAdminManageType == 1)
+			{
+				if(GetClientTeam(i) > 1)
+					ChangeClientTeam(i, 1);
+			}
+			else
+				KickClient(i, "Kicked for being AFK!");
 		}
 	}
 	
@@ -89,14 +103,15 @@ public Action AutoKick(Handle hTimer)
 
 public Action OnPlayerRunCmd(int iClient, int &iButtons, int &iImpulse, float fVel[3], float fAngles[3], int &iWeapon, int &iSubtype, int &iCmdnum, int &iTickcount, int &iSeed, int iMouse[2])
 {
-	if(IsFakeClient(iClient) || CheckCommandAccess(iClient, "sm_ban", ADMFLAG_BAN, false))
+	static int iLastValues[MAXPLAYERS+1][3];
+	
+	if(IsFakeClient(iClient))
 		return Plugin_Continue;
 	
 	if(!bCheckSpec)
-		if(GetClientTeam(iClient) == 1)
-			return Plugin_Continue;
-	
-	static int iLastValues[MAXPLAYERS+1][3];
+		if(!CheckCommandAccess(iClient, sAdminCmdAccessString, ADMFLAG_BAN, false) || iAdminManageType > 1)
+			if(GetClientTeam(iClient) == 1)
+				return Plugin_Continue;
 	
 	if(bL4D)
 	{
@@ -144,10 +159,15 @@ static bool IsMouseValsValid(int iClient)
 
 public void OnClientPutInServer(int client)
 {
-	iLastAction[client] = RoundFloat(GetEngineTime());
+	SetClientTime(client);
 }
 
 public void OnClientAuthorized(int client, const char[] auth)
+{
+	SetClientTime(client);
+}
+
+void SetClientTime(int client)
 {
 	iLastAction[client] = RoundFloat(GetEngineTime());
 }
@@ -185,4 +205,6 @@ void CvarsChanged()
 		iMaxVisiblePlayers = GetConVarInt(hCvar_VisibleMaxPlayers);
 	
 	bKickOnFull = GetConVarInt(hCvar_KickOnFull) > 0;
+	iAdminManageType = GetConVarInt(hCvar_AdminManageType);
+	GetConVarString(hCvar_AdminCmdAccess, sAdminCmdAccessString, sizeof(sAdminCmdAccessString));
 }
